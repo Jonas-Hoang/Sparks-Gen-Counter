@@ -158,28 +158,6 @@ struct ContentView: View {
                 .disabled(!viewModel.timerActive)
             }
             
-            Button("Generate JSON") {
-                guard let resourceURL = Bundle.main.resourceURL else {
-                    print("❌ Không thể lấy resourceURL.")
-                    return
-                }
-                
-                
-                let imagesFolder = resourceURL.appendingPathComponent("Cards")
-                let metadataFile = resourceURL.appendingPathComponent("metadata.json")
-
-                let panel = NSSavePanel()
-                panel.title = "Save CardData.json"
-                panel.allowedContentTypes = [.json] // macOS 12+
-                panel.nameFieldStringValue = "CardData.json"
-
-                if panel.runModal() == .OK, let outputFile = panel.url {
-                    CardDataGenerator.generateCardData(from: imagesFolder, metadataFile: metadataFile, output: outputFile)
-                } else {
-                    print("🛑 Người dùng đã hủy chọn đường dẫn.")
-                }
-            }
-            
             Button(action: {
                 if viewModel.timerActive {
                     viewModel.stop()

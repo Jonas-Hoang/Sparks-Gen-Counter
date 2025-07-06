@@ -29,49 +29,24 @@ struct CardMeta: Codable {
 
 // MARK: - CardData Generator
 class CardDataGenerator {
-    static func generateCardData(from imagesFolder: URL, metadataFile: URL, output: URL) {
-     
-
-
+    static func generateCardData(metadataFile: URL, output: URL) {
         guard let data = try? Data(contentsOf: metadataFile),
               let metaList = try? JSONDecoder().decode([CardMeta].self, from: data) else {
             print("❌ Không thể đọc metadata JSON.")
             return
         }
-        
+
         var result: [CardData] = []
-        
+
         for meta in metaList {
-            let possibleExtensions = ["png", "jpg", "jpeg", "PNG", "JPG"]
-            var imagePath: URL? = nil
-            
-            for ext in possibleExtensions {
-                let path = imagesFolder.appendingPathComponent("\(meta.name).\(ext)")
-                print("\(meta.name).\(ext)")
-                if FileManager.default.fileExists(atPath: path.path) {
-                    imagePath = path
-                    break
-                }
-            }
-            
-            if let imagesFolder = Bundle.main.resourceURL?.appendingPathComponent("Resources/Cards") {
-                let exists = FileManager.default.fileExists(atPath: imagesFolder.path)
-                print("📦 Cards folder exists in bundle: \(exists ? "✅ YES" : "❌ NO")")
-            }
-            
-            guard let validPath = imagePath,
-                  let image = NSImage(contentsOf: validPath),
+            guard let image = NSImage(named: meta.name),
                   let resized = image.resized(to: CGSize(width: 64, height: 64)) else {
-                
                 print("⚠️ Không load được ảnh cho \(meta.name)")
-                
                 continue
             }
-            
-            
-            
+
             let hash = resized.averageHash()
-            
+
             let card = CardData(
                 name: meta.name,
                 cost: meta.cost,
@@ -80,7 +55,7 @@ class CardDataGenerator {
             )
             result.append(card)
         }
-        
+
         do {
             let jsonData = try JSONEncoder().encode(result)
             try jsonData.write(to: output)
