@@ -1,0 +1,13 @@
+
+[
+  {
+    "name": "Singe",
+    "cost": 1,
+    "type": "spell"
+  },
+  {
+    "name": "Trio",
+    "cost": 3,
+    "type": "creature"
+  }
+]
