@@ -11,11 +11,9 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @StateObject private var viewModel = GameViewModel()
-    @StateObject private var captureCoordinator = ImageCaptureCoordinator()
     @State private var countdown: Int = 7
     @State private var countdownTimer: Timer?
     @State private var isPaused: Bool = false
-    
     
     
     var displayTick: Int {
@@ -164,12 +162,12 @@ struct ContentView: View {
                     stopCountdown()
                     countdown = viewModel.tickMode == .normal ? 7 : 5
                     isPaused = false
-                    captureCoordinator.cancelCapture()
+//                    viewModel.captureCoordinator.cancelCapture()
                 } else {
                     viewModel.start()
                     countdown = viewModel.tickMode == .normal ? 7 : 5
                     startCountdown()
-                    captureCoordinator.beginCaptureOnce()
+//                    viewModel.captureCoordinator.beginCaptureOnce()
                 }
             }) {
                 RoundedRectangle(cornerRadius: 12)

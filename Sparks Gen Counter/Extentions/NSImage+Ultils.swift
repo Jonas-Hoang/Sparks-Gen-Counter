@@ -20,6 +20,11 @@ extension NSImage {
         newImage.unlockFocus()
         return newImage
     }
+    
+    func cgImageForOCR() -> CGImage? {
+          var proposedRect = CGRect(origin: .zero, size: self.size)
+          return self.cgImage(forProposedRect: &proposedRect, context: nil, hints: nil)
+      }
 
     func averageHash() -> String {
         guard let resized = self.resized(to: CGSize(width: 8, height: 8)) else { return "" }

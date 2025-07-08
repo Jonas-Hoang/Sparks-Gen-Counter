@@ -1,15 +1,15 @@
 //
-//  GameViewMode.swift
+//  GameViewModel.swift
 //  Sparks Gen Counter
 //
 //  Created by Jonas Hoang on 4/7/25.
 //
+
 import Foundation
 import Combine
-
-extension Notification.Name {
-    static let cardDetected = Notification.Name("cardDetected")
-}
+import SwiftUI
+import ScreenCaptureKit
+import AppKit
 
 class GameViewModel: ObservableObject {
     @Published var spark = 6
@@ -18,6 +18,14 @@ class GameViewModel: ObservableObject {
     @Published var timerActive = false
     @Published var opponent: Opponent = .none
     @Published var health = 5
+    @Published var allCards: [CardData] = []
+    @Published var isRunning: Bool = false
+    
+    private var captureTask: Task<Void, Never>?
+    
+    
+    // Coordinator được giữ ở đây
+    let captureCoordinator: ImageCaptureCoordinator
     
     private var timer: Timer?
     private var interval: TimeInterval = 7
@@ -26,16 +34,99 @@ class GameViewModel: ObservableObject {
     private(set) var maxSpark = 10
     private var cancellables = Set<AnyCancellable>()
     
-    
     init() {
+        let cards = CardDataLoader.loadAllCards()
+        self.allCards = cards
+        self.captureCoordinator = ImageCaptureCoordinator(allCards: cards)
+        
         setupCardListener()
+        setupOCRListener()
     }
     
+    
+    func beginRegionSelection() {
+        OverlayWindow.shared.show(
+            with: SelectionOverlayView(
+                onSelectionComplete: { rect in
+                    print("✅ User selected region: \(rect)")
+                    self.startPeriodicCapture(in: rect)
+                    OverlayWindow.shared.hide()
+                },
+                onCancel: {
+                    print("🛑 User cancelled region selection.")
+                    OverlayWindow.shared.hide()
+                }
+            )
+        )
+    }
+    
+    func startPeriodicCapture(in rect: CGRect) {
+        captureTask?.cancel()
+        captureTask = Task {
+            while !Task.isCancelled {
+                if let image = await self.captureScreenKit(in: rect) {
+                    await MainActor.run {
+                        self.captureCoordinator.processImage(image)
+                    }
+                }
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+            }
+        }
+    }
+    
+    func captureScreenKit(in rect: CGRect) async -> NSImage? {
+        guard let display = try? await SCShareableContent.current.displays.first else {
+            return nil
+        }
+        
+        let config = SCStreamConfiguration()
+        config.width = Int(rect.width)
+        config.height = Int(rect.height)
+        config.pixelFormat = kCVPixelFormatType_32BGRA
+        
+        let filter = SCContentFilter(display: display, excludingWindows: [])
+        
+        do {
+            let stream = SCStream(filter: filter, configuration: config, delegate: nil)
+            try await stream.startCapture()
+            try await Task.sleep(nanoseconds: 500_000_000)
+            try await stream.stopCapture()
+            
+            return nil // TODO: Replace with real capture logic
+        } catch {
+            print("Screen capture error: \(error)")
+            return nil
+        }
+    }
+    
+    // MARK: - Setup listeners
+    private func setupCardListener() {
+        NotificationCenter.default.publisher(for: .cardDetected)
+            .compactMap { $0.object as? CardData }
+            .sink { [weak self] card in
+                self?.applyCard(card)
+            }
+            .store(in: &cancellables)
+    }
+    
+    private func setupOCRListener() {
+        NotificationCenter.default.publisher(for: .ocrTextRecognized)
+            .compactMap { $0.object as? String }
+            .sink { [weak self] text in
+                self?.handleOCRText(text)
+            }
+            .store(in: &cancellables)
+    }
+    
+    
+    
+    // MARK: - Opponent setup
     func updateSparkValuesForOpponent() {
         spark = opponent.startSpark
         maxSpark = opponent.maxSpark
     }
     
+    // MARK: - Timer Controls
     func start() {
         spark = opponent.startSpark
         maxSpark = opponent.maxSpark
@@ -61,7 +152,18 @@ class GameViewModel: ObservableObject {
         health = 5
     }
     
-    func tickForward() {
+    func pause() {
+        timer?.invalidate()
+        timer = nil
+    }
+    
+    func resume() {
+        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+            self?.tickForward()
+        }
+    }
+    
+    private func tickForward() {
         tick += 1
         
         if tick == 16 {
@@ -71,7 +173,7 @@ class GameViewModel: ObservableObject {
             timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
                 self?.tickForward()
             }
-            tick = 17 // to trigger UI display logic
+            tick = 17
         }
         
         var sparkGain = 2
@@ -83,7 +185,7 @@ class GameViewModel: ObservableObject {
         spark = min(spark + sparkGain, maxSpark)
     }
     
-    
+    // MARK: - Manual Adjust
     func decreaseTick() {
         if tick > 0 {
             tick -= 1
@@ -96,8 +198,7 @@ class GameViewModel: ObservableObject {
         spark = min(spark + 2, maxSpark)
     }
     
-    
-    
+    // MARK: - Spark Gen logic
     func applySparkGen() {
         guard spark >= 3 else { return }
         spark -= 3
@@ -113,18 +214,6 @@ class GameViewModel: ObservableObject {
         boostTicksRemaining = 5
     }
     
-    func pause() {
-        timer?.invalidate()
-        timer = nil
-    }
-    
-    func resume() {
-        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
-            self?.tickForward()
-        }
-    }
-    
-    //Dravos creature dead
     func addSparkFromKill() {
         guard opponent == .dravos else { return }
         spark = min(spark + 1, maxSpark)
@@ -134,24 +223,27 @@ class GameViewModel: ObservableObject {
         spark = max(spark - amount, 0)
     }
     
-    // MARK: - Handle Card Recognition
-    private func setupCardListener() {
-        NotificationCenter.default.publisher(for: .cardDetected)
-            .compactMap { $0.object as? CardData }
-            .sink { [weak self] card in
-                self?.applyCard(card)
-            }
-            .store(in: &cancellables)
-    }
-    
+    // MARK: - Card / OCR application
     func applyCard(_ card: CardData) {
-        print("[🎴] Đang áp dụng thẻ: \(card.name), cost: \(card.cost), loại: \(card.type)")
+        print("[🎴] Applying card: \(card.name), cost: \(card.cost), type: \(card.type)")
         reduceSpark(by: card.cost)
     }
     
-    // MARK: - SparkGen Effect
+    func handleOCRText(_ text: String) {
+        let lines = text.components(separatedBy: .newlines).filter { !$0.isEmpty }
+        let processor = OCRProcessor(allCards: self.allCards)
+        let results = processor.parseOCRLines(lines)
+        
+        for result in results {
+            print("[📝 OCR] Matched: \(result.cardName), cost: \(result.cost) sparks")
+            self.reduceSpark(by: result.cost)
+        }
+    }
+    
+    // MARK: - SparkGenEffect
     private var sparkGenEffect: SparkGenEffect?
 }
+
 struct SparkGenEffect {
     let startTick: Int
     

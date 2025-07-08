@@ -7,35 +7,20 @@
 
 
 import Foundation
-import AppKit
 
-class CardDataLoader {
-    static func loadCardData(from folderPath: String) -> [CardData] {
-        let fileManager = FileManager.default
-        guard let files = try? fileManager.contentsOfDirectory(atPath: folderPath) else {
+struct CardDataLoader {
+    static func loadAllCards() -> [CardData] {
+        guard let url = Bundle.main.url(forResource: "CardData", withExtension: "json") else {
+            print("❌ CardData.json not found in bundle!")
             return []
         }
-
-        var cardDataList: [CardData] = []
-
-        for file in files {
-            let fullPath = "\(folderPath)/\(file)"
-            guard let image = NSImage(contentsOfFile: fullPath) else { continue }
-
-            let fileName = file.replacingOccurrences(of: ".png", with: "").replacingOccurrences(of: ".jpg", with: "")
-            let components = fileName.components(separatedBy: "_")
-            guard components.count == 3,
-                  let cost = Int(components[1]),
-                  let type = CardType(rawValue: components[2]) else { continue }
-
-            let name = components[0]
-
-            guard let imageHash = ImageHashManager.shared.generateHash(from: image) else { continue }
-
-            let card = CardData(name: name, cost: cost, type: type, imageHash: imageHash)
-            cardDataList.append(card)
+        do {
+            let data = try Data(contentsOf: url)
+            let decoder = JSONDecoder()
+            return try decoder.decode([CardData].self, from: data)
+        } catch {
+            print("❌ Failed to decode CardData.json: \(error)")
+            return []
         }
-
-        return cardDataList
     }
 }

@@ -6,82 +6,89 @@
 //
 
 import SwiftUI
-import ScreenCaptureKit
 
 struct SelectionOverlayView: View {
-    var onSelectionComplete: (NSImage) -> Void
+    var onSelectionComplete: (CGRect) -> Void
     var onCancel: () -> Void
 
     @State private var startLocation: CGPoint? = nil
     @State private var currentLocation: CGPoint? = nil
-    
 
     var body: some View {
         GeometryReader { geo in
             ZStack {
+                // Màu overlay mờ
                 Color.black.opacity(0.4)
                     .edgesIgnoringSafeArea(.all)
-                    .gesture(DragGesture(minimumDistance: 0)
-                        .onChanged { value in
-                            if startLocation == nil {
-                                startLocation = value.startLocation
-                            }
-                            currentLocation = value.location
-                        }
-                        .onEnded { _ in
-                            if let start = startLocation, let end = currentLocation {
-                                let rect = CGRect(x: min(start.x, end.x),
-                                                  y: min(start.y, end.y),
-                                                  width: abs(start.x - end.x),
-                                                  height: abs(start.y - end.y))
-
-                                Task {
-                                    if let image = await captureScreenKit(in: rect) {
-                                        onSelectionComplete(image)
-                                    } else {
-                                        onCancel()
-                                    }
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { value in
+                                if startLocation == nil {
+                                    startLocation = value.startLocation
                                 }
-                            } else {
-                                onCancel()
+                                currentLocation = value.location
                             }
-                        }
+                            .onEnded { _ in
+                                handleSelectionEnd()
+                            }
                     )
 
+                // Vẽ vùng chọn
                 if let start = startLocation, let current = currentLocation {
                     Rectangle()
                         .stroke(Color.white, lineWidth: 2)
-                        .frame(width: abs(start.x - current.x), height: abs(start.y - current.y))
-                        .position(x: (start.x + current.x) / 2, y: (start.y + current.y) / 2)
+                        .background(Color.clear)
+                        .frame(
+                            width: abs(start.x - current.x),
+                            height: abs(start.y - current.y)
+                        )
+                        .position(
+                            x: (start.x + current.x) / 2,
+                            y: (start.y + current.y) / 2
+                        )
+                }
+
+                // Nút Cancel (nếu muốn)
+                VStack {
+                    HStack {
+                        Spacer()
+                        Button("Cancel") {
+                            onCancel()
+                        }
+                        .padding()
+                        .background(Color.white.opacity(0.8))
+                        .cornerRadius(8)
+                        .padding()
+                    }
+                    Spacer()
                 }
             }
         }
     }
 
-    func captureScreenKit(in rect: CGRect) async -> NSImage? {
-        guard let display = try? await SCShareableContent.current.displays.first else { return nil }
-
-        let config = SCStreamConfiguration()
-        config.width = Int(rect.width)
-        config.height = Int(rect.height)
-        config.pixelFormat = kCVPixelFormatType_32BGRA
-
-        let filter = SCContentFilter(display: display, excludingWindows: [])
-
-        do {
-            let stream = SCStream(filter: filter, configuration: config, delegate: nil)
-            try await stream.startCapture()
-
-            // Simulate one frame capture - replace this logic with delegate callback if needed
-            try await Task.sleep(nanoseconds: 500_000_000) // 0.5s wait
-            try await stream.stopCapture()
-
-            // In real usage, use delegate method to get CMSampleBuffer and convert to CGImage -> NSImage
-            // Placeholder result:
-            return nil
-        } catch {
-            print("Screen capture error: \(error)")
-            return nil
+    private func handleSelectionEnd() {
+        guard let start = startLocation, let end = currentLocation else {
+            print("[Overlay] ⚠️ No start/end. Cancelling.")
+            onCancel()
+            return
         }
+
+        let rect = CGRect(
+            x: min(start.x, end.x),
+            y: min(start.y, end.y),
+            width: abs(start.x - end.x),
+            height: abs(start.y - end.y)
+        )
+
+        if rect.width < 5 || rect.height < 5 {
+            print("[Overlay] ⚠️ Region too small. Ignoring selection.")
+            // Không gọi onCancel – chỉ reset
+            startLocation = nil
+            currentLocation = nil
+            return
+        }
+
+        print("[Overlay] ✅ Selected region: \(rect)")
+        onSelectionComplete(rect)
     }
 }

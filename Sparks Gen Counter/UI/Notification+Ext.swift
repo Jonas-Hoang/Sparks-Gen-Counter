@@ -8,5 +8,7 @@
 import Foundation
 
 extension Notification.Name {
+    static let ocrTextRecognized = Notification.Name("ocrTextRecognized")
+    static let cardDetected = Notification.Name("cardDetected")
     static let cardMatched = Notification.Name("cardMatched")
 }

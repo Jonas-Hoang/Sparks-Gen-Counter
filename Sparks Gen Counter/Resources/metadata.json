@@ -9,5 +9,96 @@
     "name": "Trio",
     "cost": 3,
     "type": "creature"
-  }
+  },
+  {
+    "name": "Baby Nix",
+    "cost": 2,
+    "type": "creature"
+  },
+  {
+    "name": "Tox Urchin",
+    "cost": 3,
+    "type": "creature"
+  },
+  {
+    "name": "B.F Shark",
+    "cost": 5,
+    "type": "creature"
+  },
+  {
+    "name": "Null Stone",
+    "cost": 3,
+    "type": "creature"
+  },
+  {
+    "name": "Soul Reaver",
+    "cost": 3,
+    "type": "creature"
+  },
+  {
+    "name": "Spark Generator",
+    "cost": 2,
+    "type": "creature"
+  },
+  {
+    "name": "Grow Toad",
+    "cost": 3,
+    "type": "creature"
+  },
+  {
+    "name": "Water Wright",
+    "cost": 3,
+    "type": "creature"
+  },
+  {
+    "name": "Tox Siren",
+    "cost": 3,
+    "type": "creature"
+  },
+  {
+    "name": "Heavy Knight",
+    "cost": 4,
+    "type": "creature"
+  },
+  {
+    "name": "Deep Whale",
+    "cost": 3,
+    "type": "creature"
+  },
+  {
+    "name": "Amelia",
+    "cost": 3,
+    "type": "creature"
+  },
+  {
+    "name": "Drake Bat",
+    "cost": 3,
+    "type": "creature"
+  },
+  {
+    "name": "Thorn",
+    "cost": 3,
+    "type": "creature"
+  },
+  {
+    "name": "Null Pebble",
+    "cost": 2,
+    "type": "creature"
+  },
+  {
+    "name": "Horned Warg",
+    "cost": 3,
+    "type": "creature"
+  },
+  {
+    "name": "Clanker",
+    "cost": 2,
+    "type": "creature"
+  },
+  {
+    "name": "Sell Shield",
+    "cost": 3,
+    "type": "creature"
+  },
+  
 ]
