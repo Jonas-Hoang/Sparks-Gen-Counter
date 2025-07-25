@@ -10,26 +10,33 @@ import AppKit
 import Foundation
 
 extension NSImage {
+    
     func resized(to size: CGSize) -> NSImage? {
         let newImage = NSImage(size: size)
         newImage.lockFocus()
+        defer { newImage.unlockFocus() }
+
         self.draw(in: NSRect(origin: .zero, size: size),
                   from: NSRect(origin: .zero, size: self.size),
                   operation: .copy,
                   fraction: 1.0)
-        newImage.unlockFocus()
+
         return newImage
     }
     
+
     func cgImageForOCR() -> CGImage? {
-          var proposedRect = CGRect(origin: .zero, size: self.size)
-          return self.cgImage(forProposedRect: &proposedRect, context: nil, hints: nil)
-      }
+        var proposedRect = CGRect(origin: .zero, size: self.size)
+        return self.cgImage(forProposedRect: &proposedRect, context: nil, hints: nil)
+    }
 
     func averageHash() -> String {
-        guard let resized = self.resized(to: CGSize(width: 8, height: 8)) else { return "" }
+        guard let resized = self.resized(to: CGSize(width: 8, height: 8)),
+              let tiffData = resized.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiffData) else {
+            return ""
+        }
 
-        guard let bitmap = NSBitmapImageRep(data: resized.tiffRepresentation!) else { return "" }
         var totalBrightness: Double = 0
         var brightnessValues: [Double] = []
 
